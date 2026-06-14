@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {
+    "supabase@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "convex@claude-plugins-official": true
+  }
+}
