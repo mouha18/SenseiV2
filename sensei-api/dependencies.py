@@ -4,6 +4,7 @@ from fastapi import Header, HTTPException
 
 from config import get_settings
 from models.errors import ErrorDetail
+from services.convex_client import post_convex
 
 # Convex Auth's static audience for its own issued JWTs (auth.config.ts applicationID).
 CONVEX_AUDIENCE = "convex"
@@ -55,11 +56,7 @@ async def get_current_user(authorization: str | None = Header(default=None)) -> 
         user_id = claims["sub"].split("|")[0]
         iat_ms = claims["iat"] * 1000
 
-        response = await client.post(
-            f"{settings.CONVEX_SITE_URL}/authState",
-            json={"userId": user_id},
-            headers={"X-Service-Secret": settings.CONVEX_SERVICE_SECRET},
-        )
+    response = await post_convex("/authState", {"userId": user_id})
 
     if response.status_code != 200:
         raise _unauthorized("Could not verify user")

@@ -112,6 +112,51 @@ The Feynman analogue of `persistTurn` (ADR-0010 extension). Writes the score ato
 
 **Response 200:** `{ "scoreId": "...", "attemptNumber": 2 }`
 
+### Ingestion endpoints (Sprint 3, ADR-0005/ADR-0011)
+
+FastAPI never writes Convex directly (ADR-0003/0010); these are the only routes that create/update `documents` or touch a session's scope/storage totals during ingestion.
+
+#### `sessions/ingestContext`
+
+**Request:** `{ "sessionId": "..." }`
+
+**Response 200:**
+```json
+{
+  "scope": "French History or null",
+  "scopeDescription": "...or null",
+  "scopeSource": "document | first_question | null",
+  "status": "active",
+  "totalChunks": 87,
+  "totalStorageBytes": 4200000
+}
+```
+404 if the session doesn't exist. FastAPI uses this to check the 20MB/200-chunk caps and whether scope is already locked before deciding derive vs gate (ADR-0011).
+
+#### `sessions/lockScope`
+
+**Request:** `{ "sessionId": "...", "scope": "...", "scopeDescription": "...optional...", "scopeSource": "document" }`
+
+**Response 200:** `{ "locked": true }`. **400** if the session doesn't exist or scope is already locked — the lock is one-way and irreversible for the session's life (ADR-0011); FastAPI must not call this more than once per session.
+
+#### `sessions/updateTotals`
+
+**Request:** `{ "sessionId": "...", "chunkDelta": 42, "storageDelta": 4200000 }`
+
+**Response 200:** `{ "updated": true }`. Called after a document finishes ingestion (success) or is cleaned up (cancelled/rejected, with negative deltas).
+
+#### `documents/create`
+
+**Request:** `{ "sessionId": "...", "userId": "...", "fileName": "...", "fileSizeBytes": 4200000, "storagePath": "..." }`
+
+**Response 200:** `{ "documentId": "..." }`. Row is created with `status: "processing"`, `chunkCount: 0`.
+
+#### `documents/updateStatus`
+
+**Request:** `{ "documentId": "...", "status": "ready | failed | cancelled | rejected", "chunkCount": 87, "error": "...optional..." }`
+
+**Response 200:** `{ "updated": true }`. `chunkCount`/`error` are omitted when not relevant to the transition.
+
 ---
 
 ## Convex → FastAPI
