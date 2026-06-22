@@ -9,7 +9,10 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as documents_internal from "../documents_internal.js";
 import type * as http from "../http.js";
+import type * as sessions from "../sessions.js";
+import type * as sessions_internal from "../sessions_internal.js";
 import type * as users from "../users.js";
 import type * as users_internal from "../users_internal.js";
 
@@ -21,7 +24,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  documents_internal: typeof documents_internal;
   http: typeof http;
+  sessions: typeof sessions;
+  sessions_internal: typeof sessions_internal;
   users: typeof users;
   users_internal: typeof users_internal;
 }>;
