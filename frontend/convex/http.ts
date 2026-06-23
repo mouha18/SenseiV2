@@ -208,4 +208,42 @@ http.route({
   }),
 });
 
+// Sprint 5 Feynman surface (ADR-0007/0010, INTERNAL_API.md "persistFeynman").
+// chat/requestContext and chat/consumeAllowance are reused as-is for Feynman
+// (both already generic, not chat-specific) — only the score write differs.
+
+http.route({
+  path: "/feynman/persist",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!isAuthorized(request)) return new Response("Unauthorized", { status: 401 });
+    const body = (await request.json()) as {
+      sessionId: string;
+      userId: string;
+      outcome: string;
+      score?: {
+        concept: string;
+        explanation: string;
+        overallScore: number;
+        scoresClear: number;
+        scoresConcise: number;
+        scoresConcrete: number;
+        scoresCorrect: number;
+        scoresCoherent: number;
+        scoresComplete: number;
+        scoresCourteous: number;
+        criticism: string;
+        summary: string;
+      };
+      refundAllowance: boolean;
+    };
+    try {
+      const result = await ctx.runMutation(internal.feynman_internal.persistFeynman, body);
+      return json(result);
+    } catch (err) {
+      return json({ error: (err as Error).message }, 404);
+    }
+  }),
+});
+
 export default http;

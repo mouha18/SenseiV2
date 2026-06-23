@@ -1,6 +1,14 @@
 from pydantic import BaseModel
 
 
+class SuggestionsRequest(BaseModel):
+    session_id: str
+
+
+class SuggestionsResponse(BaseModel):
+    suggestions: list[str]
+
+
 class FeynmanRequest(BaseModel):
     session_id: str
     concept: str
