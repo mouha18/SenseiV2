@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
 // No session-creation path exists anywhere yet (Sprint 6 builds the dashboard
 // UI on top of this). Minimal public mutation so a session can exist at all
@@ -19,5 +20,31 @@ export const createSession = mutation({
       lastActivityAt: now,
       createdAt: now,
     });
+  },
+});
+
+// Dashboard session list — newest first, current user only.
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+    return await ctx.db
+      .query("sessions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+  },
+});
+
+// Single session, ownership-checked — powers ScopeTag and the session page.
+export const get = query({
+  args: { sessionId: v.id("sessions") },
+  handler: async (ctx, { sessionId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return null;
+    const session = await ctx.db.get(sessionId);
+    if (session === null || session.userId !== userId) return null;
+    return session;
   },
 });

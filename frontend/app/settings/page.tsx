@@ -3,6 +3,7 @@
 import { useAuthActions, useAuthToken } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -67,6 +68,12 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-1 items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-4">
+        <Link
+          href="/dashboard"
+          className="inline-block font-mono text-xs text-muted-foreground hover:text-foreground"
+        >
+          ← Dashboard
+        </Link>
         <Card>
           <CardHeader>
             <CardTitle>Settings</CardTitle>
