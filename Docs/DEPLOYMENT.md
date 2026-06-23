@@ -45,7 +45,7 @@ FastAPI verifies Convex Auth JWTs **offline** against the published JWKS. Convex
 | `KEY_ENCRYPTION_SECRET` | FastAPI env | Encrypt/decrypt stored BYOK keys — ADR-0002. **Rotating = re-encrypt every stored blob.** |
 | `CONVEX_SERVICE_SECRET` | **FastAPI env + Convex env** | Both directions: FastAPI→Convex service calls (ADR-0003) and Convex cron→cleanup (ADR-0006). **Rotation touches both stores at once.** |
 | `CONVEX_SITE_URL` (+ derived JWKS URL / `iss` / `aud`) | FastAPI env | Offline token verification + service-endpoint base — ADR-0003. Use the **`.convex.site`** host, **not** `.convex.cloud`. |
-| FastAPI production URL | Convex env | So cron can call cleanup — ADR-0006 |
+| `FASTAPI_URL` (FastAPI production URL) | Convex env | So the hourly cron can call `/internal/cleanupSession` — ADR-0006 |
 | Supabase **restricted-role DSN** | FastAPI env | All `chunks` work, RLS-enforced via `SET LOCAL app.current_user_id` — ADR-0009. A non-superuser role, **not** the service key. |
 | Supabase **Storage credential** | FastAPI env | Raw-PDF upload + delete-on-expiry — ADR-0009. Narrow Storage scope, not the DB service key. |
 

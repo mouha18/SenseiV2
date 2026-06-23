@@ -53,3 +53,19 @@ export const getDocument = internalQuery({
     return await ctx.db.get(id);
   },
 });
+
+// ADR-0006: FastAPI's cleanup endpoint only knows the session id, so the
+// cron hands it every document's storage path up front (FastAPI has no
+// direct Convex read access — ADR-0003/0010).
+export const getStoragePaths = internalQuery({
+  args: { sessionId: v.string() },
+  handler: async (ctx, { sessionId }) => {
+    const id = ctx.db.normalizeId("sessions", sessionId);
+    if (id === null) return [];
+    const documents = await ctx.db
+      .query("documents")
+      .withIndex("by_session", (q) => q.eq("sessionId", id))
+      .collect();
+    return documents.map((doc) => doc.storagePath);
+  },
+});

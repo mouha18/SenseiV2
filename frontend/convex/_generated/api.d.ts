@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as chat_internal from "../chat_internal.js";
+import type * as crons from "../crons.js";
 import type * as documents from "../documents.js";
 import type * as documents_internal from "../documents_internal.js";
 import type * as feynmanScores from "../feynmanScores.js";
@@ -30,6 +31,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   chat_internal: typeof chat_internal;
+  crons: typeof crons;
   documents: typeof documents;
   documents_internal: typeof documents_internal;
   feynmanScores: typeof feynmanScores;

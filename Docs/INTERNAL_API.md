@@ -167,10 +167,14 @@ FastAPI never writes Convex directly (ADR-0003/0010); these are the only routes 
 
 Called by the hourly Convex expiry cron (ADR-0006). Public, secret-gated, **idempotent**.
 
-**Request (POST, `X-Service-Secret`):** `{ "sessionId": "..." }`
+**Request (POST `/internal/cleanupSession`, `X-Service-Secret`):**
+```json
+{ "session_id": "...", "user_id": "...", "storage_paths": ["..."] }
+```
+FastAPI has no Convex read access outside purpose-built endpoints (ADR-0003/0010), so the cron resolves `userId` (for the RLS-scoped delete, ADR-0009) and every `documents.storagePath` for the session up front and hands both over — it cannot look them up itself mid-request.
 
-**Behavior:** delete all of the session's chunks from Supabase pgvector (including the `is_scope_anchor` chunk) and all raw PDFs from Supabase Storage (via `documents.storagePath`). Re-running on already-clean data is a no-op.
+**Behavior:** delete all of the session's chunks from Supabase pgvector (including the `is_scope_anchor` chunk, scoped via `user_scoped_tx`) and all raw PDFs at the given storage paths from Supabase Storage. Re-running on already-clean data is a no-op.
 
-**Response 200:** `{ "sessionId": "...", "deleted": true }`
+**Response 200:** `{ "session_id": "...", "deleted": true }`
 
 On success Convex sets `session.status: "expired"`; on any non-200 the session stays `active` for the next hourly run to retry (ADR-0006).

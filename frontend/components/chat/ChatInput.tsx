@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuthToken } from "@convex-dev/auth/react";
+import { useRouter } from "next/navigation";
 import { useState, type KeyboardEvent } from "react";
 import { apiFetch, ApiError, type ChatResponse } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +21,7 @@ export function ChatInput({
   onThinkingChange: (thinking: boolean) => void;
 }) {
   const token = useAuthToken();
+  const router = useRouter();
   const { showToast } = useToast();
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -45,9 +47,16 @@ export function ChatInput({
         body: JSON.stringify({ session_id: sessionId, question }),
       });
     } catch (err) {
-      showToast(
-        err instanceof ApiError ? err.message : "Something went wrong. Please try again.",
-      );
+      if (err instanceof ApiError && err.code === "ALLOWANCE_EXHAUSTED") {
+        showToast("Today's free allowance is used up.", {
+          label: "Add your own key →",
+          onClick: () => router.push("/settings"),
+        });
+      } else {
+        showToast(
+          err instanceof ApiError ? err.message : "Something went wrong. Please try again.",
+        );
+      }
     } finally {
       setSending(false);
       onThinkingChange(false);

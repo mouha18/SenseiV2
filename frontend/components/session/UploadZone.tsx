@@ -10,35 +10,49 @@ import type { Id } from "@/convex/_generated/dataModel";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
-export function UploadZone({ sessionId }: { sessionId: Id<"sessions"> }) {
+export function UploadZone({
+  sessionId,
+  isExpired,
+}: {
+  sessionId: Id<"sessions">;
+  isExpired?: boolean;
+}) {
   const token = useAuthToken();
   const documents = useQuery(api.documents.list, { sessionId });
   const { showToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const seenReadyRef = useRef<Set<string> | null>(null);
+  // Tracks every status we've already toasted for, across all terminal
+  // outcomes — not just "ready" — so a doc disappearing into rejected/
+  // cancelled doesn't do so silently.
+  const seenStatusRef = useRef<Map<string, string> | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingName, setUploadingName] = useState<string | null>(null);
 
-  // Toast only for ready transitions that happen *after* the first snapshot
-  // — not for already-ready documents on initial page load.
+  // Toast only for transitions that happen *after* the first snapshot —
+  // not for documents already in a terminal state on initial page load.
   useEffect(() => {
     if (documents === undefined) return;
-    if (seenReadyRef.current === null) {
-      seenReadyRef.current = new Set(
-        documents.filter((d) => d.status === "ready").map((d) => d._id),
-      );
+    if (seenStatusRef.current === null) {
+      seenStatusRef.current = new Map(documents.map((d) => [d._id, d.status]));
       return;
     }
     for (const doc of documents) {
-      if (doc.status === "ready" && !seenReadyRef.current.has(doc._id)) {
-        seenReadyRef.current.add(doc._id);
+      const previous = seenStatusRef.current.get(doc._id);
+      if (previous === doc.status) continue;
+      seenStatusRef.current.set(doc._id, doc.status);
+      if (doc.status === "ready") {
         showToast(`${doc.fileName} ready · in scope`);
+      } else if (doc.status === "rejected") {
+        showToast(doc.error ?? `${doc.fileName} was rejected as off-topic.`);
+      } else if (doc.status === "cancelled") {
+        showToast(`${doc.fileName} upload cancelled.`);
       }
     }
   }, [documents, showToast]);
 
   async function uploadFile(file: File) {
+    if (isExpired) return;
     setError(null);
     if (file.size > MAX_FILE_BYTES) {
       setError("This file is too large. Maximum size is 5MB per file.");
@@ -152,20 +166,24 @@ export function UploadZone({ sessionId }: { sessionId: Id<"sessions"> }) {
         </div>
       )}
 
-      <button
-        onClick={() => inputRef.current?.click()}
-        disabled={uploadingName !== null}
-        className="border border-dashed border-border px-3 py-[6px] font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40"
-      >
-        + PDF
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="application/pdf"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      {!isExpired && (
+        <>
+          <button
+            onClick={() => inputRef.current?.click()}
+            disabled={uploadingName !== null}
+            className="border border-dashed border-border px-3 py-[6px] font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40"
+          >
+            + PDF
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </>
+      )}
 
       {error && <span className="font-mono text-xs text-destructive">{error}</span>}
     </div>
