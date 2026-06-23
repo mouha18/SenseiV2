@@ -86,7 +86,7 @@ Writes a chat turn atomically (ADR-0010): user message, optional assistant messa
 
 ### `persistFeynman`
 
-The Feynman analogue of `persistTurn` (ADR-0010 extension). Writes the score atomically, refunding on a failed eval.
+**Route:** `POST /feynman/persist`. The Feynman analogue of `persistTurn` (ADR-0010 extension). Writes the score atomically, refunding on a failed eval. `getRequestContext`/`consumeAllowance` (above) are reused as-is for the Feynman path — both are already generic, not chat-specific (FastAPI calls `getRequestContext` with `recentMessageLimit: 0`, since Feynman doesn't need chat history).
 
 **Request:**
 ```json
@@ -112,7 +112,7 @@ The Feynman analogue of `persistTurn` (ADR-0010 extension). Writes the score ato
 - `overallScore` is the six-C average FastAPI already computed in code (ADR-0007); Convex stores it verbatim.
 - Bumps `lastActivityAt`.
 
-**Response 200:** `{ "scoreId": "...", "attemptNumber": 2 }`
+**Response 200:** `{ "scoreId": "...", "attemptNumber": 2 }` (both `null` when `outcome: "failed"`).
 
 ### Ingestion endpoints (Sprint 3, ADR-0005/ADR-0011)
 

@@ -325,9 +325,12 @@ Clear **92** · Concise **85** · Concrete **88** · Correct **95** · Coherent 
   "correct":   { "score": 0, "criticism": "string" },
   "coherent":  { "score": 0, "criticism": "string" },
   "complete":  { "score": 0, "criticism": "string" },
-  "courteous": { "score": 0, "criticism": "string" }
+  "courteous": { "score": 0, "criticism": "string" },
+  "summary":   "string"
 }
 ```
+
+`summary` (added Sprint 5) — a 1-2 sentence overall feedback summary. Added because `FeynmanResponse`/`API_CONTRACT.md` require one and no other source for it was ever specified here; cheaper to add one field to this call than add a second Gemini call.
 
 `overall_score` and `retry_suggested` are added by code after parsing (see Division of labour).
 

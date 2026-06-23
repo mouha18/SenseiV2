@@ -196,6 +196,30 @@ Content-Type: application/json
 
 ---
 
+## POST /evaluate/suggestions
+
+**Description:** Suggest 3-5 concepts the student could explain back, drawn from the session's discussion so far (PRD F4 "Test Me", `PROMPTS.md` §3). The student can pick a suggestion or type their own concept into `POST /evaluate/feynman`. Un-metered — does not touch the Daily Allowance (it's a helper, not the graded product); still subject to the velocity rate limit.
+
+**Headers:**
+```text
+Authorization: Bearer <convex_session_token>
+Content-Type: application/json
+```
+
+**Request:**
+```json
+{ "session_id": "sess_abc123" }
+```
+
+**Response 200:**
+```json
+{ "suggestions": ["Photosynthesis", "The Calvin Cycle", "ATP Production"] }
+```
+
+Shares the `RATE_LIMITED`/`SESSION_EXPIRED`/`GENERATION_FAILED` error shapes documented under "Common errors" below. Does **not** return `ALLOWANCE_EXHAUSTED` (un-metered).
+
+---
+
 ## POST /evaluate/feynman
 
 **Description:** Evaluate a student's free-form explanation of a concept using the 7C's rubric.
