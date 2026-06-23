@@ -77,4 +77,11 @@ export default defineSchema({
     error: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_session", ["sessionId"]),
+
+  feedback: defineTable({
+    userId: v.id("users"),
+    type: v.string(),
+    message: v.string(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
 });
