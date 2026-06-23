@@ -17,36 +17,38 @@ The service-to-service surface between FastAPI and Convex. The public, browser-f
 
 ### `getRequestContext`
 
-The per-request **start** call (ADR-0010). One round-trip that does the velocity gate and returns everything FastAPI needs to handle a `/chat/ask` or `/evaluate/feynman` request. Folds in ADR-0001 (velocity), ADR-0002 (key blob), ADR-0003 (`tokensValidAfter`), ADR-0010 (history).
+The per-request **start** call (ADR-0010). One round-trip that does the velocity gate and returns everything FastAPI needs to handle a `/chat/ask` or `/evaluate/feynman` request. Folds in ADR-0001 (velocity), ADR-0002 (key blob), ADR-0005 (ingest-in-progress), ADR-0006 (expiry), ADR-0010 (history). Note: `tokensValidAfter`/revocation is **not** re-checked here — `get_current_user` (ADR-0003) already verified the token via `/authState` before this call is ever made.
 
 **Request:**
 ```json
-{ "userId": "...", "sessionId": "...", "recentMessageLimit": 20 }
+{ "userId": "...", "sessionId": "...", "recentMessageLimit": 10 }
 ```
 
-**Response 200:**
+**Response 200 — normal case:**
 ```json
 {
+  "rateLimited": false,
+  "sessionExpired": false,
+  "ingestInProgress": false,
   "keyCiphertext": "…or null",
-  "tokensValidAfter": 1749600000000,
   "session": {
     "scope": "French History",
     "scopeDescription": "…or null",
     "scopeSource": "first_question",
-    "status": "active",
     "outOfScopeCount": 0,
     "totalChunks": 87
   },
   "recentMessages": [
-    { "role": "user", "content": "…" },
+    { "role": "user", "content": "…", "responseType": null, "source": null },
     { "role": "assistant", "content": "…", "responseType": "socratic", "source": "rag" }
   ]
 }
 ```
-- **Velocity** is checked-and-consumed *first* (fixed window, ADR-0001). Over limit → **429** `{ "error": { "code": "RATE_LIMITED", "detail": { "resets_in_ms": 41000 } } }`. FastAPI maps this to the public velocity 429.
-- `keyCiphertext` present → BYOK; null → Default Key.
-- FastAPI checks `tokensValidAfter` against the token's `iat` (revocation, ADR-0003) and `session.status` (expiry, ADR-0006) itself.
-- `recentMessages` omitted/empty for the Feynman path (FastAPI may pass `recentMessageLimit: 0`).
+This is a **tagged result, not a thrown error** — `rateLimited`/`sessionExpired`/`ingestInProgress` are expected outcomes the mutation still returns 200 for; only a missing/mismatched user or session throws (mapped to **404** by the HTTP route). FastAPI checks the tags **in order** and maps each to its public response:
+- `rateLimited: true` → **429** `{ "error": { "code": "RATE_LIMITED", "detail": { "resets_in_ms": 41000 } } }`. Velocity is checked-and-consumed *first* (fixed 60s window, ADR-0001), before any other field is computed.
+- `sessionExpired: true` → **403** `SESSION_EXPIRED` (ADR-0006).
+- `ingestInProgress: true` → **409** `INGEST_IN_PROGRESS` (a `documents` row for this session has `status: "processing"`, ADR-0005).
+- Otherwise the full context above is present. `keyCiphertext` present → BYOK; `null` → Default Key. `recentMessages` is oldest→newest, already truncated to `recentMessageLimit` (FastAPI passes `0` for the Feynman path, `10` for chat — matching `PROMPTS.md` §1's history window).
 
 ### `consumeAllowance`
 

@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as chat_internal from "../chat_internal.js";
 import type * as documents_internal from "../documents_internal.js";
 import type * as http from "../http.js";
 import type * as sessions from "../sessions.js";
@@ -24,6 +25,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  chat_internal: typeof chat_internal;
   documents_internal: typeof documents_internal;
   http: typeof http;
   sessions: typeof sessions;

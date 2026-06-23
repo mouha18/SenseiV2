@@ -149,4 +149,63 @@ http.route({
   }),
 });
 
+// Sprint 4 chat surface (ADR-0001/0004/0010, INTERNAL_API.md "FastAPI -> Convex").
+// Same purpose-built-route rule as the ingestion endpoints above.
+
+http.route({
+  path: "/chat/requestContext",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!isAuthorized(request)) return new Response("Unauthorized", { status: 401 });
+    const body = (await request.json()) as {
+      userId: string;
+      sessionId: string;
+      recentMessageLimit: number;
+    };
+    try {
+      const result = await ctx.runMutation(internal.chat_internal.getRequestContext, body);
+      return json(result);
+    } catch (err) {
+      return json({ error: (err as Error).message }, 404);
+    }
+  }),
+});
+
+http.route({
+  path: "/chat/consumeAllowance",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!isAuthorized(request)) return new Response("Unauthorized", { status: 401 });
+    const body = (await request.json()) as { userId: string };
+    try {
+      const result = await ctx.runMutation(internal.chat_internal.consumeAllowance, body);
+      return json(result);
+    } catch (err) {
+      return json({ error: (err as Error).message }, 404);
+    }
+  }),
+});
+
+http.route({
+  path: "/chat/persistTurn",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (!isAuthorized(request)) return new Response("Unauthorized", { status: 401 });
+    const body = (await request.json()) as {
+      sessionId: string;
+      userId: string;
+      userMessage: { content: string };
+      outcome: string;
+      assistantMessage?: { content: string; responseType: string; source?: string };
+      refundAllowance: boolean;
+    };
+    try {
+      const result = await ctx.runMutation(internal.chat_internal.persistTurn, body);
+      return json(result);
+    } catch (err) {
+      return json({ error: (err as Error).message }, 404);
+    }
+  }),
+});
+
 export default http;
