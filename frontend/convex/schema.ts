@@ -33,7 +33,9 @@ export default defineSchema({
     totalStorageBytes: v.number(),
     lastActivityAt: v.number(),
     createdAt: v.number(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_status_activity", ["status", "lastActivityAt"]),
 
   messages: defineTable({
     sessionId: v.id("sessions"),

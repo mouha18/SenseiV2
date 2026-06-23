@@ -130,6 +130,12 @@ async def delete_document_chunks(conn: asyncpg.Connection, *, document_id: str) 
     await conn.execute("DELETE FROM chunks WHERE document_id = $1", document_id)
 
 
+async def delete_session_chunks(conn: asyncpg.Connection, *, session_id: str) -> None:
+    """Used by the expiry cleanup endpoint (ADR-0006) — covers every
+    document's chunks plus the scope-anchor chunk in one pass."""
+    await conn.execute("DELETE FROM chunks WHERE session_id = $1", session_id)
+
+
 async def store_chunks(
     conn: asyncpg.Connection,
     *,

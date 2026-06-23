@@ -171,18 +171,18 @@
 
 | # | Task | Type | Files Involved | Status |
 |---|---|---|---|---|
-| 1 | Handle Gemini API error (bad key, quota) in UI | `feat` | `frontend/components/chat/ChatInput.tsx` | 📋 |
-| 2 | Handle ingestion outcomes in UI — failed (incl. scanned PDF), cancelled, and `rejected`/off-topic upload (ADR-0005/0011) | `feat` | `frontend/components/session/UploadZone.tsx` | 📋 |
-| 3 | Handle **both** 429s in UI — `RATE_LIMITED` (velocity) and `ALLOWANCE_EXHAUSTED` (prompt to add a key) | `feat` | `frontend/lib/api.ts` | 📋 |
-| 4 | Handle session expiry (expired sessions shown as read-only) | `feat` | `frontend/app/session/[id]/page.tsx` | 📋 |
-| 5 | Loading states for all async operations | `feat` | all components with API calls | 📋 |
-| 6 | Empty state for dashboard (no sessions yet) | `feat` | `frontend/app/dashboard/page.tsx` | 📋 |
-| 7 | Session expiry cleanup — Convex hourly cron finds inactive sessions; FastAPI internal route hard-deletes chunks + raw PDFs and marks expired (ADR-0006) | `infra` | `convex/crons.ts`, `sensei-api/routers/internal.py` | 📋 |
+| 1 | Handle Gemini API error (bad key, quota) in UI | `feat` | `frontend/components/chat/ChatInput.tsx` | ✅ |
+| 2 | Handle ingestion outcomes in UI — failed (incl. scanned PDF), cancelled, and `rejected`/off-topic upload (ADR-0005/0011) | `feat` | `frontend/components/session/UploadZone.tsx` | ✅ |
+| 3 | Handle **both** 429s in UI — `RATE_LIMITED` (velocity) and `ALLOWANCE_EXHAUSTED` (prompt to add a key) | `feat` | `frontend/lib/api.ts` | ✅ |
+| 4 | Handle session expiry (expired sessions shown as read-only) | `feat` | `frontend/app/session/[id]/page.tsx` | ✅ |
+| 5 | Loading states for all async operations | `feat` | all components with API calls | ✅ |
+| 6 | Empty state for dashboard (no sessions yet) | `feat` | `frontend/app/dashboard/page.tsx` | ✅ |
+| 7 | Session expiry cleanup — Convex hourly cron finds inactive sessions; FastAPI internal route hard-deletes chunks + raw PDFs and marks expired (ADR-0006) | `infra` | `convex/crons.ts`, `sensei-api/routers/internal.py` | ✅ |
 
 **Definition of Done:**
-- [ ] Every API error shows a user-friendly message
-- [ ] No blank screens or unhandled promise rejections
-- [ ] Session expiry cleanup runs automatically
+- [x] Every API error shows a user-friendly message
+- [x] No blank screens or unhandled promise rejections
+- [x] Session expiry cleanup runs automatically (needs `FASTAPI_URL` set in Convex env + deploy to take effect live)
 
 ---
 

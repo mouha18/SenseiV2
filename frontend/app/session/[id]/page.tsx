@@ -53,7 +53,7 @@ export default function SessionPage() {
         <TestMeButton sessionId={sessionId} disabled={!session.scope} />
       </div>
 
-      <UploadZone sessionId={sessionId} />
+      <UploadZone sessionId={sessionId} isExpired={isExpired} />
 
       <ChatWindow sessionId={sessionId} thinking={thinking} pendingMessage={pendingMessage} />
 

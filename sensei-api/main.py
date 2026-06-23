@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from config import get_settings
 from models.health import HealthResponse
-from routers import chat, evaluate, ingest, keys
+from routers import chat, evaluate, ingest, internal, keys
 
 settings = get_settings()
 
@@ -28,6 +28,7 @@ app.include_router(ingest.router)
 app.include_router(chat.router)
 app.include_router(evaluate.router)
 app.include_router(keys.router)
+app.include_router(internal.router)
 
 
 @app.get("/health", response_model=HealthResponse)

@@ -91,6 +91,12 @@ async def upload(
         raise _error(400, "STORAGE_LIMIT", "File exceeds the 5MB per-file limit.")
 
     context = await _get_ingest_context(session_id)
+    if context["status"] == "expired":
+        raise _error(
+            403,
+            "SESSION_EXPIRED",
+            "This session has expired and is read-only. Start a new session to continue.",
+        )
     if context["totalStorageBytes"] + len(content) > MAX_SESSION_BYTES:
         raise _error(400, "STORAGE_LIMIT", "Session storage limit of 20MB reached.")
     if context["totalChunks"] >= MAX_SESSION_CHUNKS:
