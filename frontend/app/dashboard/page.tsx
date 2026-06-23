@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { SessionCard } from "@/components/dashboard/SessionCard";
+import { FeedbackCard } from "@/components/dashboard/FeedbackCard";
 import { OnboardingTour } from "@/components/ui/OnboardingTour";
 
 export default function DashboardPage() {
@@ -80,6 +81,8 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+
+        <FeedbackCard />
       </main>
     </div>
   );
