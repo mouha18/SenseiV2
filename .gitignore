@@ -2,4 +2,5 @@ node_modules/
 .env
 .env.local
 *.log
+*.err
 .DS_Store

@@ -30,11 +30,16 @@ LABEL_SAMPLE_CHARS = 4000
 # Per-message gate (ADR-0004 amendment, calibrated on 8 synthetic topics —
 # provisional, needs re-tuning on real traffic, distinct from
 # DOCUMENT_GATE_THRESHOLD above which gates whole documents, not questions).
+# Only an IN threshold remains (2026-06-24 follow-up) — there is no longer
+# a free, no-judge auto-reject. A short, context-dependent reply ("I don't
+# know", answering the tutor's own question) carries no standalone topical
+# signal and was scoring as clear-out, wrongly redirecting legitimate
+# conversation. Below this threshold now always goes to the judge, which
+# is given recent conversation context instead of just the bare message.
 SCOPE_THRESHOLD_DOC_IN = 0.66
-SCOPE_THRESHOLD_DOC_OUT = 0.59
 SCOPE_THRESHOLD_DESC_IN = 0.63
-SCOPE_THRESHOLD_DESC_OUT = 0.57
 RAG_TOP_K = 5
+CONVERSATION_CONTEXT_TURNS = 4
 
 
 @dataclass
@@ -148,6 +153,13 @@ class ChatFirstScopeResult:
     description: str | None = None
 
 
+def _format_conversation_context(recent_messages: list[dict]) -> str:
+    turns = recent_messages[-CONVERSATION_CONTEXT_TURNS:]
+    return "\n".join(
+        f"{'Student' if m['role'] == 'user' else 'Sensei'}: {m['content']}" for m in turns
+    )
+
+
 async def check_message_scope(
     conn: asyncpg.Connection,
     *,
@@ -155,13 +167,19 @@ async def check_message_scope(
     question: str,
     question_embedding: list[float],
     ingest_context: dict,
+    recent_messages: list[dict],
     api_key: str,
 ) -> MessageScopeResult:
-    """Per-message scope gate (ADR-0004 amendment): a band + un-metered LLM
-    scope-judge for both session types — no fixed threshold separates
-    either. Doc sessions reuse the RAG vector search: top-1 similarity is
-    the gate signal, and the same top-k chunks are reused as source
-    material so retrieval isn't duplicated for the answer call.
+    """Per-message scope gate (ADR-0004 amendment + 2026-06-24 follow-up):
+    a single IN threshold is the fast, free "clearly on-topic" path; below
+    it always goes to the un-metered LLM judge, now grounded in recent
+    conversation context rather than the bare message alone — a short,
+    context-dependent reply ("I don't know", answering the tutor's own
+    question) has no standalone topical signal and was false-positiving as
+    out-of-scope under the old auto-reject. Doc sessions reuse the RAG
+    vector search: top-1 similarity is the gate signal, and the same
+    top-k chunks are reused as source material so retrieval isn't
+    duplicated for the answer call.
     """
     scope_source = ingest_context.get("scopeSource")
     label = ingest_context.get("scope") or ""
@@ -176,24 +194,25 @@ async def check_message_scope(
             exclude_anchor=True,
         )
         similarity = top_chunks[0].similarity if top_chunks else 0.0
-        in_threshold, out_threshold = SCOPE_THRESHOLD_DOC_IN, SCOPE_THRESHOLD_DOC_OUT
+        in_threshold = SCOPE_THRESHOLD_DOC_IN
         topic_context = label + "\n\n" + "\n\n".join(c.content for c in top_chunks)
     else:
         anchor_similarity = await description_anchor_similarity(
             conn, session_id=session_id, query_embedding=question_embedding
         )
         similarity = anchor_similarity if anchor_similarity is not None else 0.0
-        in_threshold, out_threshold = SCOPE_THRESHOLD_DESC_IN, SCOPE_THRESHOLD_DESC_OUT
+        in_threshold = SCOPE_THRESHOLD_DESC_IN
         topic_context = f"{label}: {ingest_context.get('scopeDescription') or ''}"
 
     used_judge = False
     if similarity >= in_threshold:
         in_scope = True
-    elif similarity <= out_threshold:
-        in_scope = False
     else:
         used_judge = True
-        in_scope = await gemini.judge_scope(topic_context, question, api_key)
+        conversation_context = _format_conversation_context(recent_messages)
+        in_scope = await gemini.judge_scope(
+            topic_context, conversation_context, question, api_key
+        )
 
     logger.info(
         "scope_decision question=%r similarity=%.4f in_scope=%s used_judge=%s",

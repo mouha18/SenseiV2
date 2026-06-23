@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
@@ -19,10 +20,12 @@ from services.embedder import (
     extract_pdf_text,
     store_chunks,
 )
-from services.gemini import embed_texts
+from services.gemini import embed_texts, generate_ingestion_greeting
 from utils.scope import GateResult, lock_or_gate_document
 
 router = APIRouter(prefix="/ingest", tags=["ingest"], dependencies=[Depends(get_current_user)])
+
+logger = logging.getLogger(__name__)
 
 MAX_FILE_BYTES = 5 * 1024 * 1024
 MAX_SESSION_BYTES = 20 * 1024 * 1024
@@ -58,6 +61,24 @@ async def _update_document_status(
     await post_convex("/documents/updateStatus", payload)
 
 
+async def _persist_greeting(session_id: str, user_id: str, label: str) -> None:
+    """Proactive, assistant-only opening message right after a
+    document-first upload locks scope — otherwise the student lands on an
+    empty chat with no prompt to start."""
+    greeting = await generate_ingestion_greeting(label, api_key=get_settings().GEMINI_API_KEY)
+    response = await post_convex(
+        "/chat/persistTurn",
+        {
+            "sessionId": session_id,
+            "userId": user_id,
+            "outcome": "greeting",
+            "assistantMessage": {"content": greeting, "responseType": "direct"},
+            "refundAllowance": False,
+        },
+    )
+    response.raise_for_status()
+
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload(
     background_tasks: BackgroundTasks,
@@ -70,6 +91,12 @@ async def upload(
         raise _error(400, "STORAGE_LIMIT", "File exceeds the 5MB per-file limit.")
 
     context = await _get_ingest_context(session_id)
+    if context["status"] == "expired":
+        raise _error(
+            403,
+            "SESSION_EXPIRED",
+            "This session has expired and is read-only. Start a new session to continue.",
+        )
     if context["totalStorageBytes"] + len(content) > MAX_SESSION_BYTES:
         raise _error(400, "STORAGE_LIMIT", "Session storage limit of 20MB reached.")
     if context["totalChunks"] >= MAX_SESSION_CHUNKS:
@@ -210,5 +237,13 @@ async def _process_document(
                 "storageDelta": len(file_bytes),
             },
         )
+
+        if gate.locked_now and gate.label:
+            try:
+                await _persist_greeting(session_id, user_id, gate.label)
+            except Exception:
+                # Cosmetic — the document is still successfully ready
+                # either way; don't fail ingestion over a greeting.
+                logger.warning("ingestion greeting failed", exc_info=True)
     finally:
         _cancel_events.pop(document_id, None)

@@ -194,7 +194,7 @@ http.route({
     const body = (await request.json()) as {
       sessionId: string;
       userId: string;
-      userMessage: { content: string };
+      userMessage?: { content: string };
       outcome: string;
       assistantMessage?: { content: string; responseType: string; source?: string };
       refundAllowance: boolean;

@@ -1,3 +1,5 @@
+import hmac
+
 import httpx
 import jwt
 from fastapi import Header, HTTPException
@@ -66,3 +68,12 @@ async def get_current_user(authorization: str | None = Header(default=None)) -> 
         raise _unauthorized("Token has been revoked")
 
     return user_id
+
+
+async def verify_service_secret(x_service_secret: str = Header(default="")) -> None:
+    """Gate the Convex -> FastAPI direction (ADR-0006's cleanupSession), the
+    reverse of the JWT check above. Constant-time: a leaked secret lets a
+    caller force-expire any session by id, not just read data."""
+    expected = get_settings().CONVEX_SERVICE_SECRET
+    if not hmac.compare_digest(x_service_secret, expected):
+        raise _unauthorized("Invalid service secret")
