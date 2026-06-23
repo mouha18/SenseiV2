@@ -388,6 +388,12 @@ When a *later* upload is gated out as off-topic against the locked anchor. Shown
 
 > **{document_name}** looks like it's about something other than **{label}**, so it wasn't added — this session stays focused on {label}. If it's material you want to study, you can start a new session for it. You can still add documents related to {label} here.
 
+### Needs-topic clarification — `responseType: "direct"` (ADR-0011, Sprint 4)
+
+Fires when a chat-first session's *first* message has no identifiable topic at all (`needsTopic: true` from §2 — e.g. "hi", "help me study"). No frontend Start/Re-detect confirmation gate exists yet (PRD F1, Sprint 6), so the backend stands in: it does **not** lock scope, answers with this line instead, and re-attempts derivation on the student's next message. Persisted as a normal `answered` turn — the student got a reply, just not tutoring yet — so it does **not** touch `outOfScopeCount` (there is no scope yet to be out of).
+
+> I'd love to help — what subject or topic are you looking to study today?
+
 ### Daily-Allowance-exhausted prompt (PRD F3; resolves ADR-0007 §34 open item)
 
 When the student has spent their Daily Allowance on the Default Key, they're **prompted, not blocked** (PRD F3). Same string family; applies to both chat and Feynman (the two paths that spend the allowance). BYOK lifts the cap, so the line points there.

@@ -277,3 +277,17 @@ Returned by `POST /chat/ask` and `POST /evaluate/feynman` when a student on the 
   }
 }
 ```
+
+### `GENERATION_FAILED`
+
+Returned by `POST /chat/ask` and `POST /evaluate/feynman` when Gemini returns no usable answer — a transport error, a 5xx, a timeout, a safety-filter block, or schema-invalid output that survives one retry (PROMPTS.md conventions). The Daily Allowance is refunded if it had been consumed for this request (ADR-0001); nothing is persisted to chat history beyond what `persistTurn`'s `"failed"` outcome already covers (ADR-0010).
+
+**Response 502:**
+```json
+{
+  "error": {
+    "code": "GENERATION_FAILED",
+    "message": "Something went wrong generating a response. Please try asking again."
+  }
+}
+```

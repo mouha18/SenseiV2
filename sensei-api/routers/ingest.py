@@ -3,6 +3,7 @@ import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 
+from config import get_settings
 from dependencies import get_current_user
 from models.errors import ErrorDetail
 from models.ingest import CancelRequest, CancelResponse, UploadResponse
@@ -182,7 +183,9 @@ async def _process_document(
 
             batch: list[Chunk] = chunks[start : start + EMBED_BATCH_SIZE]
             embeddings = await embed_texts(
-                [c.content for c in batch], task_type="RETRIEVAL_DOCUMENT"
+                [c.content for c in batch],
+                task_type="RETRIEVAL_DOCUMENT",
+                api_key=get_settings().GEMINI_API_KEY,
             )
             for chunk, embedding in zip(batch, embeddings, strict=True):
                 chunk.embedding = embedding
