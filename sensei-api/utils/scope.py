@@ -1,13 +1,17 @@
+import logging
 import math
 import statistics
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import asyncpg
 
+from config import get_settings
 from services import gemini
 from services.convex_client import post_convex
 from services.embedder import Chunk
-from services.retriever import description_anchor_similarity, top_k_chunks
+from services.retriever import RetrievedChunk, description_anchor_similarity, top_k_chunks
+
+logger = logging.getLogger(__name__)
 
 GATE_SAMPLE_SIZE = 10
 # Provisional. ADR-0011 seeded this from ADR-0004's doc-mode clear-in edge
@@ -22,6 +26,15 @@ GATE_SAMPLE_SIZE = 10
 # before launch.
 DOCUMENT_GATE_THRESHOLD = 0.75
 LABEL_SAMPLE_CHARS = 4000
+
+# Per-message gate (ADR-0004 amendment, calibrated on 8 synthetic topics —
+# provisional, needs re-tuning on real traffic, distinct from
+# DOCUMENT_GATE_THRESHOLD above which gates whole documents, not questions).
+SCOPE_THRESHOLD_DOC_IN = 0.66
+SCOPE_THRESHOLD_DOC_OUT = 0.59
+SCOPE_THRESHOLD_DESC_IN = 0.63
+SCOPE_THRESHOLD_DESC_OUT = 0.57
+RAG_TOP_K = 5
 
 
 @dataclass
@@ -89,7 +102,9 @@ async def lock_or_gate_document(
 
     if scope_source is None:
         sample_text = "\n\n".join(c.content for c in chunks)[:LABEL_SAMPLE_CHARS]
-        label = await gemini.derive_doc_scope_label(sample_text)
+        label = await gemini.derive_doc_scope_label(
+            sample_text, api_key=get_settings().GEMINI_API_KEY
+        )
         response = await post_convex(
             "/sessions/lockScope",
             {
@@ -103,7 +118,9 @@ async def lock_or_gate_document(
 
     sample = sample_for_gate(chunks)
     sample_embeddings = await gemini.embed_texts(
-        [c.content for c in sample], task_type="RETRIEVAL_DOCUMENT"
+        [c.content for c in sample],
+        task_type="RETRIEVAL_DOCUMENT",
+        api_key=get_settings().GEMINI_API_KEY,
     )
     chunk_anchor = scope_source == "document"
     similarities = [
@@ -114,3 +131,91 @@ async def lock_or_gate_document(
     ]
     aggregate = median_aggregate(similarities)
     return GateResult(in_scope=aggregate >= DOCUMENT_GATE_THRESHOLD, locked_now=False)
+
+
+@dataclass
+class MessageScopeResult:
+    in_scope: bool
+    similarity: float
+    used_judge: bool
+    top_chunks: list[RetrievedChunk] = field(default_factory=list)
+
+
+@dataclass
+class ChatFirstScopeResult:
+    needs_topic: bool
+    label: str | None = None
+    description: str | None = None
+
+
+async def check_message_scope(
+    conn: asyncpg.Connection,
+    *,
+    session_id: str,
+    question: str,
+    question_embedding: list[float],
+    ingest_context: dict,
+    api_key: str,
+) -> MessageScopeResult:
+    """Per-message scope gate (ADR-0004 amendment): a band + un-metered LLM
+    scope-judge for both session types — no fixed threshold separates
+    either. Doc sessions reuse the RAG vector search: top-1 similarity is
+    the gate signal, and the same top-k chunks are reused as source
+    material so retrieval isn't duplicated for the answer call.
+    """
+    scope_source = ingest_context.get("scopeSource")
+    label = ingest_context.get("scope") or ""
+
+    top_chunks: list[RetrievedChunk] = []
+    if scope_source == "document":
+        top_chunks = await top_k_chunks(
+            conn,
+            session_id=session_id,
+            query_embedding=question_embedding,
+            k=RAG_TOP_K,
+            exclude_anchor=True,
+        )
+        similarity = top_chunks[0].similarity if top_chunks else 0.0
+        in_threshold, out_threshold = SCOPE_THRESHOLD_DOC_IN, SCOPE_THRESHOLD_DOC_OUT
+        topic_context = label + "\n\n" + "\n\n".join(c.content for c in top_chunks)
+    else:
+        anchor_similarity = await description_anchor_similarity(
+            conn, session_id=session_id, query_embedding=question_embedding
+        )
+        similarity = anchor_similarity if anchor_similarity is not None else 0.0
+        in_threshold, out_threshold = SCOPE_THRESHOLD_DESC_IN, SCOPE_THRESHOLD_DESC_OUT
+        topic_context = f"{label}: {ingest_context.get('scopeDescription') or ''}"
+
+    used_judge = False
+    if similarity >= in_threshold:
+        in_scope = True
+    elif similarity <= out_threshold:
+        in_scope = False
+    else:
+        used_judge = True
+        in_scope = await gemini.judge_scope(topic_context, question, api_key)
+
+    logger.info(
+        "scope_decision question=%r similarity=%.4f in_scope=%s used_judge=%s",
+        question,
+        similarity,
+        in_scope,
+        used_judge,
+    )
+
+    return MessageScopeResult(
+        in_scope=in_scope, similarity=similarity, used_judge=used_judge, top_chunks=top_chunks
+    )
+
+
+async def derive_chat_first_scope(question: str, api_key: str) -> ChatFirstScopeResult:
+    """Thin wrapper around the chat-first topic-derivation prompt
+    (PROMPTS.md §2). The first message of a doc-less session locks the
+    description anchor; `needsTopic` is the escape hatch for a topic-free
+    message (ADR-0011)."""
+    result = await gemini.derive_chat_topic(question, api_key=api_key)
+    if result["needsTopic"]:
+        return ChatFirstScopeResult(needs_topic=True)
+    return ChatFirstScopeResult(
+        needs_topic=False, label=result["label"], description=result["description"]
+    )
