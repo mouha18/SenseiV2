@@ -103,12 +103,14 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  // FormData bodies (multipart upload) must never get an explicit
+  // Content-Type — the browser sets the multipart boundary itself.
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    headers: isFormData
+      ? { ...options.headers }
+      : { "Content-Type": "application/json", ...options.headers },
   });
 
   if (!response.ok) {

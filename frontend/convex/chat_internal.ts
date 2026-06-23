@@ -138,11 +138,14 @@ export const consumeAllowance = internalMutation({
 
 // Atomic chat-turn write (ADR-0010): user + assistant message, the
 // out-of-scope counter, lastActivityAt, and an allowance refund on failure.
+// `userMessage` is optional so FastAPI can also persist a proactive,
+// assistant-only "greeting" turn (e.g. the opening question right after a
+// document-first upload locks scope) with no preceding student message.
 export const persistTurn = internalMutation({
   args: {
     sessionId: v.string(),
     userId: v.string(),
-    userMessage: v.object({ content: v.string() }),
+    userMessage: v.optional(v.object({ content: v.string() })),
     outcome: v.string(),
     assistantMessage: v.optional(
       v.object({
@@ -160,15 +163,19 @@ export const persistTurn = internalMutation({
     if (userDocId === null) throw new Error("User not found");
 
     const now = Date.now();
-    const messageIds = [
-      await ctx.db.insert("messages", {
-        sessionId: sessionDocId,
-        userId: userDocId,
-        role: "user",
-        content: userMessage.content,
-        createdAt: now,
-      }),
-    ];
+    const messageIds = [];
+
+    if (userMessage !== undefined) {
+      messageIds.push(
+        await ctx.db.insert("messages", {
+          sessionId: sessionDocId,
+          userId: userDocId,
+          role: "user",
+          content: userMessage.content,
+          createdAt: now,
+        }),
+      );
+    }
 
     if (assistantMessage !== undefined) {
       messageIds.push(

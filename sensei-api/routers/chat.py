@@ -137,6 +137,7 @@ async def _ask(body: ChatRequest, user_id: str) -> ChatResponse:
     api_key = get_settings().GEMINI_API_KEY if is_default_key else decrypt_key(key_ciphertext)
 
     session = context["session"]
+    recent_messages = context["recentMessages"]
     scope_result: MessageScopeResult
     label: str
 
@@ -213,6 +214,7 @@ async def _ask(body: ChatRequest, user_id: str) -> ChatResponse:
                 question=body.question,
                 question_embedding=question_embeddings[0],
                 ingest_context=session,
+                recent_messages=recent_messages,
                 api_key=api_key,
             )
         label = session["scope"] or ""
@@ -254,7 +256,6 @@ async def _ask(body: ChatRequest, user_id: str) -> ChatResponse:
 
     # FOLLOW-UP cap: a count, not a judgment — deterministic from the last
     # assistant message's responseType (ADR-0004).
-    recent_messages = context["recentMessages"]
     last_assistant = next((m for m in reversed(recent_messages) if m["role"] == "assistant"), None)
     follow_up = last_assistant is not None and last_assistant["responseType"] == "socratic"
 

@@ -36,7 +36,7 @@ export function AuthForm({
     formData.set("flow", flow);
     try {
       await signIn("password", formData);
-      router.push("/settings");
+      router.push("/dashboard");
     } catch {
       setError(
         flow === "signIn"
