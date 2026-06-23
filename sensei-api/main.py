@@ -34,3 +34,8 @@ app.include_router(internal.router)
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     return HealthResponse(status="ok", version="1.0.0")
+
+
+@app.get("/debug/cors")
+async def debug_cors() -> dict:
+    return {"allowed_origins": settings.allowed_origins_list}
