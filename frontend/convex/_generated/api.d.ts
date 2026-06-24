@@ -13,6 +13,7 @@ import type * as chat_internal from "../chat_internal.js";
 import type * as crons from "../crons.js";
 import type * as documents from "../documents.js";
 import type * as documents_internal from "../documents_internal.js";
+import type * as feedback from "../feedback.js";
 import type * as feynmanScores from "../feynmanScores.js";
 import type * as feynman_internal from "../feynman_internal.js";
 import type * as http from "../http.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   documents: typeof documents;
   documents_internal: typeof documents_internal;
+  feedback: typeof feedback;
   feynmanScores: typeof feynmanScores;
   feynman_internal: typeof feynman_internal;
   http: typeof http;
