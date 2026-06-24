@@ -28,9 +28,9 @@ export function FeedbackCard() {
     try {
       await submitFeedback({ type, message: message.trim() });
       setMessage("");
-      showToast("Feedback sent — thank you.", "success");
+      showToast("Feedback sent — thank you.");
     } catch {
-      showToast("Failed to send feedback. Try again.", "error");
+      showToast("Failed to send feedback. Try again.");
     } finally {
       setSubmitting(false);
     }
