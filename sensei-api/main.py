@@ -39,3 +39,12 @@ async def health() -> HealthResponse:
 @app.get("/debug/cors")
 async def debug_cors() -> dict:
     return {"allowed_origins": settings.allowed_origins_list}
+
+
+@app.get("/debug/config")
+async def debug_config() -> dict:
+    return {
+        "convex_url": repr(settings.CONVEX_URL),
+        "convex_site_url": repr(settings.CONVEX_SITE_URL),
+        "allowed_origins": settings.allowed_origins_list,
+    }
